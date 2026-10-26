@@ -1,19 +1,29 @@
-import './App.css'
+import React from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import Login from './Components/login';
+import Register from './Components/register';
+import Dashboard from './Components/dashboard';
+import ProtectedRoute from './Components/ProtectedRoute';
 
 function App() {
   return (
-    <div>
-      <h1>StudentMart</h1>
+    <BrowserRouter>
+      <Routes>
+        {/* Public Routes */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
 
-      <h2>Welcome to StudentMart</h2>
+        {/* Protected Routes Group */}
+        <Route element={<ProtectedRoute />}>
+          <Route path="/dashboard" element={<Dashboard />} />
+          {/* Add any other protected pages here, e.g., <Route path="/profile" element={<Profile />} /> */}
+        </Route>
 
-      <p>Your Online Shopping Application</p>
-
-      <p>Name: Nayeema Banu</p>
-
-      <p>USN: 1AT24CS135</p>
-    </div>
-  )
+        {/* Catch-all: Redirect invalid URLs to login */}
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    </BrowserRouter>
+  );
 }
 
-export default App
+export default App;
