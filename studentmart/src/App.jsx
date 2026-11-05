@@ -1,28 +1,21 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './Components/login';
 import Register from './Components/register';
 import Dashboard from './Components/dashboard';
-import ProtectedRoute from './Components/ProtectedRoute';
+import EditProfile from './Components/EditProfile';
 
 function App() {
   return (
-    <BrowserRouter>
+    <Router>
       <Routes>
-        {/* Public Routes */}
+        <Route path="/" element={<Navigate to="/login" />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-
-        {/* Protected Routes Group */}
-        <Route element={<ProtectedRoute />}>
-          <Route path="/dashboard" element={<Dashboard />} />
-          {/* Add any other protected pages here, e.g., <Route path="/profile" element={<Profile />} /> */}
-        </Route>
-
-        {/* Catch-all: Redirect invalid URLs to login */}
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/edit" element={<EditProfile />} />
       </Routes>
-    </BrowserRouter>
+    </Router>
   );
 }
 

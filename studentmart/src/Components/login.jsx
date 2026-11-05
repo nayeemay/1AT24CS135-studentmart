@@ -1,93 +1,76 @@
 import React, { useState } from 'react';
-import axios from 'axios';
 import { useNavigate, Link } from 'react-router-dom';
+import axios from 'axios';
 
-function Login() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [message, setMessage] = useState('');
-
+export default function Login() {
+  const [formData, setFormData] = useState({ email: '', password: '' });
+  const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  const handleLogin = async (e) => {
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-
+    setError('');
     try {
-      const response = await axios.post('http://localhost:5002/api/auth/login', {
-        email,
-        password,
-      });
-
-      console.log('Login successful:', response.data);
-      setMessage('Login successful!');
-
-      // Save token & user info return by backend
-      if (response.data.token) {
-        localStorage.setItem('token', response.data.token);
-      } else {
-        localStorage.setItem('token', 'authenticated'); // fallback token
-      }
-
-      if (response.data.user) {
-        localStorage.setItem('user', JSON.stringify(response.data.user));
-      } else {
-        localStorage.setItem('user', JSON.stringify({ email }));
-      }
-
-      // Redirect directly to dashboard
+      const res = await axios.post('http://localhost:5002/api/auth/login', formData);
+      localStorage.setItem('user', JSON.stringify(res.data.user || res.data));
       navigate('/dashboard');
-
-    } catch (error) {
-      console.error('Login error:', error);
-      if (error.response && error.response.data && error.response.data.message) {
-        setMessage(error.response.data.message);
-      } else {
-        setMessage('Invalid email or password');
-      }
+    } catch (err) {
+      setError(err.response?.data?.error || 'Invalid email or password');
     }
   };
 
   return (
-    <div className="auth-card" style={{ maxWidth: '400px', margin: '2rem auto', padding: '2rem', border: '1px solid #ccc', borderRadius: '8px' }}>
-      <h2>Login</h2>
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', backgroundColor: '#0f172a', fontFamily: 'sans-serif' }}>
+      <div style={{ backgroundColor: '#ffffff', padding: '40px', borderRadius: '16px', boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.3)', width: '100%', maxWidth: '400px', color: '#111827' }}>
+        <h2 style={{ fontSize: '28px', fontWeight: '800', textAlign: 'center', marginBottom: '8px' }}>Welcome Back</h2>
+        <p style={{ fontSize: '14px', color: '#4b5563', textAlign: 'center', marginBottom: '24px' }}>Sign in to your StudentMart account</p>
+        
+        {error && (
+          <div style={{ backgroundColor: '#fee2e2', border: '1px solid #f87171', color: '#b91c1c', padding: '12px', borderRadius: '8px', marginBottom: '16px', fontSize: '14px', textAlign: 'center' }}>
+            {error}
+          </div>
+        )}
 
-      <form onSubmit={handleLogin}>
-        <div className="form-group" style={{ marginBottom: '1rem' }}>
-          <label>Email</label>
-          <input
-            type="email"
-            style={{ width: '100%', padding: '8px', marginTop: '4px' }}
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="Enter your email"
-            required
-          />
-        </div>
-
-        <div className="form-group" style={{ marginBottom: '1rem' }}>
-          <label>Password</label>
-          <input
-            type="password"
-            style={{ width: '100%', padding: '8px', marginTop: '4px' }}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Enter your password"
-            required
-          />
-        </div>
-
-        <button type="submit" style={{ width: '100%', padding: '10px', background: '#007bff', color: '#fff', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>
-          Login
-        </button>
-      </form>
-
-      {message && <div style={{ marginTop: '1rem', color: message.includes('successful') ? 'green' : 'red' }}>{message}</div>}
-
-      <p style={{ marginTop: '1rem' }}>
-        Don't have an account? <Link to="/register">Register here</Link>
-      </p>
+        <form onSubmit={handleSubmit}>
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', color: '#374151', marginBottom: '8px' }}>Email Address</label>
+            <input 
+              type="email" 
+              name="email" 
+              required 
+              value={formData.email} 
+              onChange={handleChange} 
+              style={{ width: '100%', padding: '12px', border: '1px solid #d1d5db', borderRadius: '8px', backgroundColor: '#f9fafb', color: '#111827', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }}
+              placeholder="name@student.com" 
+            />
+          </div>
+          <div style={{ marginBottom: '24px' }}>
+            <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', color: '#374151', marginBottom: '8px' }}>Password</label>
+            <input 
+              type="password" 
+              name="password" 
+              required 
+              value={formData.password} 
+              onChange={handleChange} 
+              style={{ width: '100%', padding: '12px', border: '1px solid #d1d5db', borderRadius: '8px', backgroundColor: '#f9fafb', color: '#111827', fontSize: '14px', outline: 'none', boxSizing: 'border-box' }}
+              placeholder="••••••••" 
+            />
+          </div>
+          <button 
+            type="submit" 
+            style={{ width: '100%', backgroundColor: '#111827', color: '#ffffff', padding: '14px', borderRadius: '8px', fontWeight: '700', fontSize: '16px', border: 'none', cursor: 'pointer' }}
+          >
+            Sign In
+          </button>
+        </form>
+        <p style={{ fontSize: '14px', textAlign: 'center', color: '#4b5563', marginTop: '24px' }}>
+          Don't have an account? <Link to="/register" style={{ color: '#4f46e5', fontWeight: '700', textDecoration: 'none' }}>Register here</Link>
+        </p>
+      </div>
     </div>
   );
 }
-
-export default Login;
