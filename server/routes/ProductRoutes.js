@@ -1,140 +1,54 @@
-
-
-//server/routes/ProductRoutes.js for 3rd program
-
-const express = require("express");
-const Product = require("../models/Product");
-
+const express = require('express');
 const router = express.Router();
+const Product = require('../models/Product');
+const jwt = require('jsonwebtoken');
 
-// GET all products, with optional search, category and price sorting
-router.get("/", async (req, res) => {
-    try {
-        const { search, category, sort } = req.query;
-        const filter = {};
+const JWT_SECRET = process.env.JWT_SECRET || 'studentmart_super_secret_key';
 
-        if (search) {
-            filter.name = {
-                $regex: search,
-                $options: "i"
-            };
-        }
+// Middleware to verify JWT token
+const verifyToken = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ message: 'Invalid token' });
+  }
+  try {
+    const token = authHeader.split(' ')[1];
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (err) {
+    return res.status(401).json({ message: 'Invalid token' });
+  }
+};
 
-        if (category && category !== "All") {
-            filter.category = category;
-        }
-
-        let query = Product.find(filter);
-
-        if (sort === "lowToHigh") {
-            query = query.sort({ price: 1 });
-        } else if (sort === "highToLow") {
-            query = query.sort({ price: -1 });
-        }
-
-        const products = await query.exec();
-
-        res.json(products);
-    } catch (error) {
-        console.error("Fetch products error:", error);
-        res.status(500).json({
-            message: "Unable to fetch products"
-        });
-    }
+// Get all products
+router.get('/', verifyToken, async (req, res) => {
+  try {
+    const products = await Product.find().sort({ createdAt: -1 });
+    res.json(products);
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
 });
 
-// GET a single product
-router.get("/:id", async (req, res) => {
-    try {
-        const { id } = req.params;
-
-        if (!/^[0-9a-fA-F]{24}$/.test(id)) {
-            return res.status(400).json({
-                message: "Invalid product ID"
-            });
-        }
-
-        const product = await Product.findById(id);
-
-        if (!product) {
-            return res.status(404).json({
-                message: "Product not found"
-            });
-        }
-
-        res.json(product);
-    } catch (error) {
-        console.error("Fetch product error:", error);
-        res.status(500).json({
-            message: "Unable to fetch product"
-        });
-    }
-});
-
-// ADD a product
-router.post("/", async (req, res) => {
-    try {
-        const {
-            name,
-            description,
-            price,
-            category,
-            image,
-            stock
-        } = req.body;
-
-        if (
-            typeof name !== "string" || !name.trim() ||
-            typeof description !== "string" || !description.trim() ||
-            typeof category !== "string" || !category.trim()
-        ) {
-            return res.status(400).json({
-                message: "Name, description and category are required"
-            });
-        }
-
-        const parsedPrice = Number(price);
-        const parsedStock = stock === undefined || stock === ""
-            ? 0
-            : Number(stock);
-
-        if (!Number.isFinite(parsedPrice) || parsedPrice < 0) {
-            return res.status(400).json({
-                message: "Price must be a non-negative number"
-            });
-        }
-
-        if (!Number.isInteger(parsedStock) || parsedStock < 0) {
-            return res.status(400).json({
-                message: "Stock must be a non-negative whole number"
-            });
-        }
-
-        if (image !== undefined && typeof image !== "string") {
-            return res.status(400).json({
-                message: "Image must be a URL string"
-            });
-        }
-
-        const product = await Product.create({
-            name: name.trim(),
-            description: description.trim(),
-            price: parsedPrice,
-            category: category.trim(),
-            image: image?.trim() || "",
-            stock: parsedStock
-        });
-
-        res.status(201).json({
-            message: "Product added successfully",
-            product
-        });
-    } catch (error) {
-        console.error("Add product error:", error);
-        res.status(500).json({
-            message: "Unable to add product"
-        });
-    }
+// Create a new product listing
+router.post('/', verifyToken, async (req, res) => {
+  try {
+    const { name, price, category, stock, image, description } = req.body;
+    const newProduct = new Product({
+      name,
+      price,
+      category,
+      stock: stock || 10,
+      image,
+      description,
+      seller: req.user.userId
+    });
+    await newProduct.save();
+    res.status(201).json({ message: 'Product created successfully', newProduct });
+  } catch (err) {
+    res.status(500).json({ message: 'Server error', error: err.message });
+  }
 });
 
 module.exports = router;

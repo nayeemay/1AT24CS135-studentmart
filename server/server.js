@@ -17,29 +17,18 @@ mongoose.connect(MONGO_URI)
   .then(() => console.log('MongoDB connected successfully'))
   .catch((err) => console.error('MongoDB connection error:', err));
 
-// Routes
-try {
-  const authRoutes = require('./routes/authRoutes'); // Matches your authRoutes.js file
-  app.use('/api/auth', authRoutes);
-  console.log('Auth routes loaded successfully');
-} catch (e) {
-  console.log('Auth routes error:', e.message);
-}
+// API Routes
+app.use('/api/auth', require('./routes/authRoutes'));
+app.use('/api/products', require('./routes/productRoutes'));
+app.use('/api/cart', require('./routes/cartRoutes'));
+app.use('/api/orders', require('./routes/orderRoutes'));
+app.use('/api/users', require('./routes/userRoutes'));
 
-try {
-const productRoutes = require('./routes/productRoutes');
-  app.use('/api/products', productRoutes);
-  console.log('Product routes loaded successfully');
-} catch (e) {
-  console.log('Product routes error:', e.message);
-}
-
-// Root test route
+// Basic Route
 app.get('/', (req, res) => {
   res.send('StudentMart Backend is running smoothly!');
 });
 
-// Start Server
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`Server is running on http://localhost:${PORT}`);
 });

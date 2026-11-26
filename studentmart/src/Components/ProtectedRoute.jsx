@@ -1,11 +1,13 @@
 import React from 'react';
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 
-function ProtectedRoute() {
-  const token = localStorage.getItem('token');
+export default function ProtectedRoute({ children, adminOnly = false }) {
+  const isAdmin = localStorage.getItem('isAdmin') === 'true' || Boolean(localStorage.getItem('adminToken'));
+  const userToken = localStorage.getItem('userToken') || localStorage.getItem('token');
 
-  // If a token exists, allow access to the page; otherwise, redirect to login
-  return token ? <Outlet /> : <Navigate to="/login" replace />;
+  if (adminOnly) {
+    return isAdmin ? children : <Navigate to="/admin-login" replace />;
+  }
+
+  return userToken || isAdmin ? children : <Navigate to="/login" replace />;
 }
-
-export default ProtectedRoute;

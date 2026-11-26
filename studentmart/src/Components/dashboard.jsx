@@ -1,237 +1,390 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import ProductForm from './ProductForm';
-import ProductGrid from './ProductGrid';
 
-export default function Dashboard() {
-  const [user, setUser] = useState(null);
-  const [activeTab, setActiveTab] = useState('overview');
-  const [cart, setCart] = useState(() => {
-    const saved = localStorage.getItem('cart');
-    return saved ? JSON.parse(saved) : [];
-  });
-  const navigate = useNavigate();
+function DashboardCard3D({ children, style = {}, maxTilt = 7 }) {
+  const [tilt, setTilt] = useState({ rotateX: 0, rotateY: 0, glowX: 50, glowY: 50, hovered: false });
 
-  useEffect(() => {
-    const storedUser = JSON.parse(localStorage.getItem('user'));
-    if (!storedUser) {
-      navigate('/login');
-    } else {
-      setUser(storedUser);
-    }
-
-    const handleCartUpdate = () => {
-      const saved = localStorage.getItem('cart');
-      setCart(saved ? JSON.parse(saved) : []);
-    };
-
-    window.addEventListener('cartUpdated', handleCartUpdate);
-    return () => window.removeEventListener('cartUpdated', handleCartUpdate);
-  }, [navigate]);
-
-  const handleLogout = () => {
-    localStorage.removeItem('user');
-    navigate('/login');
+  const handleMouseMove = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const relX = (e.clientX - rect.left) / rect.width;
+    const relY = (e.clientY - rect.top) / rect.height;
+    setTilt({
+      rotateX: Number(((0.5 - relY) * maxTilt).toFixed(2)),
+      rotateY: Number(((relX - 0.5) * maxTilt).toFixed(2)),
+      glowX: Math.round(relX * 100),
+      glowY: Math.round(relY * 100),
+      hovered: true
+    });
   };
 
-  const updateQuantity = (index, delta) => {
-    const newCart = [...cart];
-    const newQty = (newCart[index].quantity || 1) + delta;
-    if (newQty <= 0) {
-      newCart.splice(index, 1);
-    } else {
-      newCart[index].quantity = newQty;
-    }
-    setCart(newCart);
-    localStorage.setItem('cart', JSON.stringify(newCart));
-    window.dispatchEvent(new Event('cartUpdated'));
+  const handleMouseLeave = () => {
+    setTilt({ rotateX: 0, rotateY: 0, glowX: 50, glowY: 50, hovered: false });
   };
-
-  const removeFromCart = (index) => {
-    const newCart = cart.filter((_, i) => i !== index);
-    setCart(newCart);
-    localStorage.setItem('cart', JSON.stringify(newCart));
-    window.dispatchEvent(new Event('cartUpdated'));
-  };
-
-  const totalPrice = cart.reduce((sum, item) => sum + (Number(item.price) * (item.quantity || 1)), 0);
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#f3f4f6', fontFamily: 'sans-serif' }}>
-      {/* Sidebar Navigation */}
-      <aside style={{ width: '260px', backgroundColor: '#ffffff', borderRight: '1px solid #e5e7eb', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', padding: '24px' }}>
+    <div style={{ perspective: '1200px' }}>
+      <div
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        style={{
+          position: 'relative',
+          background: 'linear-gradient(155deg, rgba(30, 41, 59, 0.94) 0%, rgba(15, 23, 42, 0.98) 100%)',
+          borderRadius: '18px',
+          borderTop: '1px solid rgba(255, 255, 255, 0.16)',
+          borderLeft: '1px solid rgba(255, 255, 255, 0.08)',
+          borderRight: '1px solid rgba(15, 23, 42, 0.9)',
+          borderBottom: '4px solid #070b14',
+          transformStyle: 'preserve-3d',
+          transform: tilt.hovered
+            ? `rotateX(${tilt.rotateX}deg) rotateY(${tilt.rotateY}deg) translateY(-4px)`
+            : 'rotateX(0deg) rotateY(0deg) translateY(0px)',
+          transition: tilt.hovered
+            ? 'transform 0.08s ease-out, box-shadow 0.2s ease'
+            : 'transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.35s ease',
+          boxShadow: tilt.hovered
+            ? '0 26px 42px -14px rgba(0, 0, 0, 0.72), 0 0 22px rgba(59, 130, 246, 0.2)'
+            : '0 16px 30px -12px rgba(0, 0, 0, 0.6)',
+          ...style
+        }}
+      >
+        <div
+          style={{
+            pointerEvents: 'none',
+            position: 'absolute',
+            inset: 0,
+            borderRadius: '18px',
+            background: tilt.hovered
+              ? `radial-gradient(circle at ${tilt.glowX}% ${tilt.glowY}%, rgba(255, 255, 255, 0.11), transparent 60%)`
+              : 'none',
+            zIndex: 1
+          }}
+        />
+        <div style={{ position: 'relative', zIndex: 2 }}>{children}</div>
+      </div>
+    </div>
+  );
+}
+
+export default function Dashboard() {
+  const [user, setUser] = useState({ name: 'Student', email: 'student@campus.com', college: 'Atria' });
+
+  useEffect(() => {
+    // Load profile info if saved in localStorage
+    const savedUser = JSON.parse(localStorage.getItem('userProfile') || '{}');
+    if (savedUser.name) {
+      setUser(savedUser);
+    }
+  }, []);
+
+  const navLinks = [
+    { label: '📊 Dashboard', path: '/dashboard', active: true },
+    { label: '✏️ Edit Profile', path: '/edit-profile', active: false },
+    { label: '🛍️ Products', path: '/products', active: false },
+    { label: '➕ List a Product', path: '/add-product', active: false },
+    { label: '🛒 Shopping Cart', path: '/cart', active: false },
+    { label: '📦 My Orders', path: '/orders', active: false }
+  ];
+
+  const quickTiles = [
+    { title: 'Browse Marketplace', desc: 'Explore 3D campus essentials & supplies', icon: '🛍️', path: '/products', accent: '#3b82f6' },
+    { title: 'Shopping Cart', desc: 'Review items & trace live delivery GPS', icon: '🛒', path: '/cart', accent: '#10b981' },
+    { title: 'My Orders', desc: 'Track placed, packed & delivered orders', icon: '📦', path: '/orders', accent: '#8b5cf6' }
+  ];
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        minHeight: '100vh',
+        background: 'radial-gradient(circle at 18% 12%, #1e293b 0%, #0b1120 55%, #060913 100%)',
+        color: '#fff',
+        fontFamily: 'system-ui, sans-serif'
+      }}
+    >
+      {/* 3D ELEVATED SIDEBAR */}
+      <aside
+        style={{
+          width: '270px',
+          flexShrink: 0,
+          background: 'linear-gradient(180deg, rgba(30, 41, 59, 0.92) 0%, rgba(15, 23, 42, 0.97) 100%)',
+          borderRight: '1px solid rgba(255, 255, 255, 0.1)',
+          boxShadow: '12px 0 32px rgba(0, 0, 0, 0.55)',
+          display: 'flex',
+          flexDirection: 'column',
+          padding: '26px 18px',
+          justifyContent: 'space-between'
+        }}
+      >
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '30px' }}>
-            <span style={{ backgroundColor: '#111827', color: '#ffffff', fontWeight: 'bold', padding: '8px 12px', borderRadius: '10px', fontSize: '18px' }}>S</span>
+          {/* 3D Brand Badge */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              marginBottom: '30px',
+              padding: '12px',
+              borderRadius: '14px',
+              background: 'rgba(15, 23, 42, 0.75)',
+              borderTop: '1px solid rgba(255,255,255,0.12)',
+              borderBottom: '3px solid #060913'
+            }}
+          >
+            <div
+              style={{
+                width: '40px',
+                height: '40px',
+                background: 'linear-gradient(180deg, #60a5fa 0%, #2563eb 100%)',
+                color: '#ffffff',
+                borderRadius: '11px',
+                borderTop: '1px solid rgba(255,255,255,0.4)',
+                borderBottom: '3px solid #1d4ed8',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: '800',
+                fontSize: '18px',
+                boxShadow: '0 8px 16px -4px rgba(37, 99, 235, 0.6)'
+              }}
+            >
+              S
+            </div>
             <div>
-              <h2 style={{ fontWeight: 'bold', color: '#111827', fontSize: '16px', margin: 0 }}>StudentMart</h2>
-              <p style={{ fontSize: '12px', color: '#6b7280', margin: 0 }}>Your student space</p>
+              <h2 style={{ fontSize: '16px', fontWeight: '800', color: '#f8fafc', margin: 0 }}>StudentMart</h2>
+              <span style={{ fontSize: '12px', color: '#94a3b8' }}>3D Student Space</span>
             </div>
           </div>
-          
-          <p style={{ fontSize: '11px', fontWeight: 'bold', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '12px' }}>Student Workspace</p>
-          
-          <nav style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <button onClick={() => setActiveTab('overview')} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', borderRadius: '10px', backgroundColor: activeTab === 'overview' ? '#f3f4f6' : 'transparent', color: '#111827', fontWeight: '600', fontSize: '14px', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left' }}>
-              <span>📊</span>
-              <span>Dashboard</span>
-            </button>
-            <button onClick={() => setActiveTab('profile')} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', borderRadius: '10px', backgroundColor: activeTab === 'profile' ? '#f3f4f6' : 'transparent', color: '#4b5563', fontWeight: '500', fontSize: '14px', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left' }}>
-              <span>👤</span>
-              <span>My Profile</span>
-            </button>
-            <button onClick={() => setActiveTab('edit')} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', borderRadius: '10px', backgroundColor: activeTab === 'edit' ? '#f3f4f6' : 'transparent', color: '#4b5563', fontWeight: '500', fontSize: '14px', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left' }}>
-              <span>✏️</span>
-              <span>Edit Profile</span>
-            </button>
-            <button onClick={() => setActiveTab('products')} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', borderRadius: '10px', backgroundColor: activeTab === 'products' ? '#f3f4f6' : 'transparent', color: '#4b5563', fontWeight: '500', fontSize: '14px', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left' }}>
-              <span>📦</span>
-              <span>Products</span>
-            </button>
-            <button onClick={() => setActiveTab('add-product')} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', borderRadius: '10px', backgroundColor: activeTab === 'add-product' ? '#f3f4f6' : 'transparent', color: '#4b5563', fontWeight: '500', fontSize: '14px', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left' }}>
-              <span>➕</span>
-              <span>Add Product</span>
-            </button>
-            <button onClick={() => setActiveTab('cart')} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', borderRadius: '10px', backgroundColor: activeTab === 'cart' ? '#f3f4f6' : 'transparent', color: '#4b5563', fontWeight: '500', fontSize: '14px', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left' }}>
-              <span>🛒</span>
-              <span>Shopping Cart {cart.length > 0 && `(${cart.reduce((a, c) => a + (c.quantity || 1), 0)})`}</span>
-            </button>
+
+          <nav style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {navLinks.map((item) => (
+              <button
+                key={item.path}
+                type="button"
+                onClick={() => (window.location.href = item.path)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  width: '100%',
+                  padding: '11px 14px',
+                  background: item.active
+                    ? 'linear-gradient(180deg, #60a5fa 0%, #2563eb 100%)'
+                    : 'linear-gradient(180deg, rgba(30, 41, 59, 0.75) 0%, rgba(15, 23, 42, 0.9) 100%)',
+                  color: item.active ? '#ffffff' : '#cbd5e1',
+                  border: 'none',
+                  borderTop: item.active
+                    ? '1px solid rgba(255,255,255,0.35)'
+                    : '1px solid rgba(255,255,255,0.08)',
+                  borderBottom: item.active ? '3px solid #1d4ed8' : '3px solid #070b14',
+                  borderRadius: '11px',
+                  fontSize: '14px',
+                  fontWeight: item.active ? '700' : '600',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  boxShadow: item.active
+                    ? '0 10px 18px -6px rgba(37, 99, 235, 0.55)'
+                    : '0 6px 12px -6px rgba(0, 0, 0, 0.45)',
+                  transition: 'transform 0.15s ease'
+                }}
+              >
+                {item.label}
+              </button>
+            ))}
           </nav>
         </div>
 
         <div>
-          <button onClick={handleLogout} style={{ display: 'flex', alignItems: 'center', gap: '12px', color: '#4b5563', fontWeight: '500', fontSize: '14px', width: '100%', padding: '10px 14px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left' }}>
-            <span>🚪</span>
-            <span>Logout</span>
+          <button
+            type="button"
+            onClick={() => {
+              localStorage.clear();
+              window.location.href = '/login';
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              width: '100%',
+              padding: '11px 14px',
+              background: 'linear-gradient(180deg, #f87171 0%, #dc2626 100%)',
+              color: '#ffffff',
+              border: 'none',
+              borderTop: '1px solid rgba(255,255,255,0.3)',
+              borderBottom: '3px solid #991b1b',
+              borderRadius: '11px',
+              fontSize: '14px',
+              fontWeight: '700',
+              cursor: 'pointer',
+              justifyContent: 'center',
+              boxShadow: '0 10px 18px -6px rgba(220, 38, 38, 0.55)'
+            }}
+          >
+            Logout
           </button>
         </div>
       </aside>
 
-      {/* Main Content Area */}
-      <main style={{ flex: 1, padding: '32px', overflowY: 'auto' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
-          <h1 style={{ fontSize: '24px', fontWeight: 'bold', color: '#111827', margin: 0 }}>
-            {activeTab === 'overview' && 'Dashboard'}
-            {activeTab === 'profile' && 'My Profile'}
-            {activeTab === 'edit' && 'Edit Profile'}
-            {activeTab === 'products' && 'Available Products'}
-            {activeTab === 'add-product' && 'Add New Product'}
-            {activeTab === 'cart' && 'Shopping Cart'}
-          </h1>
-          <div style={{ backgroundColor: '#111827', color: '#ffffff', padding: '6px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '600' }}>
-            {user?.usn || 'USN'}
+      {/* MAIN 3D CONTENT AREA */}
+      <main style={{ flex: 1, padding: '40px 32px', overflowY: 'auto' }}>
+        <div style={{ maxWidth: '860px', margin: '0 auto' }}>
+          {/* 3D Floating Welcome Header */}
+          <div
+            style={{
+              marginBottom: '28px',
+              padding: '22px 26px',
+              borderRadius: '18px',
+              background: 'linear-gradient(145deg, rgba(30, 41, 59, 0.85), rgba(15, 23, 42, 0.94))',
+              borderTop: '1px solid rgba(255, 255, 255, 0.16)',
+              borderBottom: '4px solid #070b14',
+              boxShadow: '0 20px 35px -15px rgba(0, 0, 0, 0.65)'
+            }}
+          >
+            <h1
+              style={{
+                fontSize: '28px',
+                fontWeight: '800',
+                color: '#f8fafc',
+                margin: '0 0 6px 0',
+                textShadow: '0 3px 12px rgba(0,0,0,0.45)'
+              }}
+            >
+              Welcome back, {user.name}! 👋
+            </h1>
+            <p style={{ fontSize: '14px', color: '#94a3b8', margin: 0 }}>
+              Here is your 3D StudentMart profile overview & quick campus shortcuts.
+            </p>
           </div>
-        </div>
 
-        {/* Tab 1: Dashboard Overview */}
-        {activeTab === 'overview' && (
-          <>
-            <div style={{ backgroundColor: '#4f46e5', borderRadius: '24px', padding: '32px', color: '#ffffff', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', marginBottom: '32px' }}>
-              <p style={{ fontSize: '11px', fontWeight: 'bold', letterSpacing: '0.1em', textTransform: 'uppercase', color: '#c7d2fe', marginBottom: '8px' }}>Your space. Your journey.</p>
-              <h2 style={{ fontSize: '28px', fontWeight: '800', marginBottom: '8px', margin: 0 }}>Hello, {user?.usn || user?.fullName || 'Student'}! 👋</h2>
-              <p style={{ fontSize: '14px', color: '#e0e7ff', maxWidth: '500px', marginBottom: '24px' }}>Everything you need to manage your student profile and explore StudentMart, all in one place.</p>
-              <button onClick={() => setActiveTab('profile')} style={{ backgroundColor: '#ffffff', color: '#4f46e5', padding: '10px 20px', borderRadius: '10px', fontSize: '14px', fontWeight: '600', border: 'none', cursor: 'pointer' }}>
-                View my profile →
+          {/* 3D PROFILE SUMMARY CARD */}
+          <DashboardCard3D style={{ padding: '28px', maxWidth: '640px', marginBottom: '28px' }}>
+            <div style={{ transform: 'translateZ(16px)' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  borderBottom: '1px solid rgba(148, 163, 184, 0.2)',
+                  paddingBottom: '12px',
+                  marginBottom: '18px'
+                }}
+              >
+                <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#f8fafc', margin: 0 }}>
+                  🪪 Profile Summary
+                </h3>
+                <span
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: '700',
+                    color: '#6ee7b7',
+                    background: 'rgba(16, 185, 129, 0.14)',
+                    border: '1px solid rgba(52, 211, 153, 0.3)',
+                    padding: '4px 10px',
+                    borderRadius: '999px'
+                  }}
+                >
+                  Active Student
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px', fontSize: '14px' }}>
+                <div
+                  style={{
+                    padding: '11px 14px',
+                    borderRadius: '10px',
+                    background: '#0b1120',
+                    border: '1px solid rgba(148, 163, 184, 0.18)',
+                    boxShadow: 'inset 0 2px 6px rgba(0, 0, 0, 0.6)',
+                    color: '#e2e8f0'
+                  }}
+                >
+                  <strong style={{ color: '#94a3b8' }}>Name:</strong> {user.name}
+                </div>
+                <div
+                  style={{
+                    padding: '11px 14px',
+                    borderRadius: '10px',
+                    background: '#0b1120',
+                    border: '1px solid rgba(148, 163, 184, 0.18)',
+                    boxShadow: 'inset 0 2px 6px rgba(0, 0, 0, 0.6)',
+                    color: '#e2e8f0'
+                  }}
+                >
+                  <strong style={{ color: '#94a3b8' }}>Email:</strong> {user.email}
+                </div>
+                <div
+                  style={{
+                    padding: '11px 14px',
+                    borderRadius: '10px',
+                    background: '#0b1120',
+                    border: '1px solid rgba(148, 163, 184, 0.18)',
+                    boxShadow: 'inset 0 2px 6px rgba(0, 0, 0, 0.6)',
+                    color: '#e2e8f0'
+                  }}
+                >
+                  <strong style={{ color: '#94a3b8' }}>College / Section:</strong> {user.college || 'Atria'}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => (window.location.href = '/edit-profile')}
+                style={{
+                  background: 'linear-gradient(180deg, #60a5fa 0%, #2563eb 100%)',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderTop: '1px solid rgba(255,255,255,0.35)',
+                  borderBottom: '4px solid #1d4ed8',
+                  padding: '11px 20px',
+                  borderRadius: '10px',
+                  fontWeight: '700',
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  boxShadow: '0 10px 20px -6px rgba(37, 99, 235, 0.6)'
+                }}
+              >
+                Edit Profile Details →
               </button>
             </div>
+          </DashboardCard3D>
 
-            <h3 style={{ fontSize: '12px', fontWeight: 'bold', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '16px' }}>Your account overview</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px' }}>
-              <div style={{ backgroundColor: '#ffffff', padding: '24px', borderRadius: '16px', border: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <div style={{ backgroundColor: '#f3f4f6', padding: '16px', borderRadius: '12px', fontSize: '20px' }}>🎓</div>
-                <div>
-                  <p style={{ fontSize: '12px', color: '#6b7280', fontWeight: '500', margin: 0 }}>University Seat Number</p>
-                  <p style={{ fontSize: '16px', fontWeight: 'bold', color: '#111827', margin: '4px 0 0 0' }}>{user?.usn || 'Not Provided'}</p>
-                </div>
-              </div>
-              <div style={{ backgroundColor: '#ffffff', padding: '24px', borderRadius: '16px', border: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: '16px' }}>
-                <div style={{ backgroundColor: '#f3f4f6', padding: '16px', borderRadius: '12px', fontSize: '20px' }}>✉️</div>
-                <div>
-                  <p style={{ fontSize: '12px', color: '#6b7280', fontWeight: '500', margin: 0 }}>Email address</p>
-                  <p style={{ fontSize: '16px', fontWeight: 'bold', color: '#111827', margin: '4px 0 0 0' }}>{user?.email || 'student@example.com'}</p>
-                </div>
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* Tab 2: My Profile */}
-        {activeTab === 'profile' && (
-          <div style={{ backgroundColor: '#ffffff', padding: '32px', borderRadius: '16px', border: '1px solid #e5e7eb', maxWidth: '600px' }}>
-            <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: '#111827', marginBottom: '20px' }}>Student Profile Details</h3>
-            <p style={{ fontSize: '14px', color: '#4b5563', marginBottom: '12px' }}><strong>Full Name:</strong> {user?.fullName || user?.name || 'N/A'}</p>
-            <p style={{ fontSize: '14px', color: '#4b5563', marginBottom: '12px' }}><strong>USN:</strong> {user?.usn || 'N/A'}</p>
-            <p style={{ fontSize: '14px', color: '#4b5563', marginBottom: '20px' }}><strong>Email:</strong> {user?.email || 'N/A'}</p>
-            <button onClick={() => setActiveTab('edit')} style={{ backgroundColor: '#111827', color: '#ffffff', padding: '10px 20px', borderRadius: '8px', fontSize: '14px', fontWeight: '600', border: 'none', cursor: 'pointer' }}>
-              Edit Details
-            </button>
-          </div>
-        )}
-
-        {/* Tab 3: Edit Profile */}
-        {activeTab === 'edit' && (
-          <div style={{ backgroundColor: '#ffffff', padding: '32px', borderRadius: '16px', border: '1px solid #e5e7eb', maxWidth: '600px' }}>
-            <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: '#111827', marginBottom: '20px' }}>Update Profile</h3>
-            <p style={{ fontSize: '14px', color: '#6b7280' }}>You can navigate to your dedicated edit page or update your info here.</p>
-            <Link to="/edit" style={{ display: 'inline-block', marginTop: '16px', backgroundColor: '#4f46e5', color: '#ffffff', padding: '10px 20px', borderRadius: '8px', fontSize: '14px', fontWeight: '600', textDecoration: 'none' }}>
-              Go to Edit Page →
-            </Link>
-          </div>
-        )}
-
-        {/* Tab 4: Products Grid */}
-        {activeTab === 'products' && (
-          <div style={{ backgroundColor: '#ffffff', padding: '24px', borderRadius: '16px', border: '1px solid #e5e7eb' }}>
-            <ProductGrid />
-          </div>
-        )}
-
-        {/* Tab 5: Add Product Form */}
-        {activeTab === 'add-product' && (
-          <div style={{ backgroundColor: '#ffffff', padding: '32px', borderRadius: '16px', border: '1px solid #e5e7eb', maxWidth: '600px' }}>
-            <ProductForm />
-          </div>
-        )}
-
-        {/* Tab 6: Shopping Cart */}
-        {activeTab === 'cart' && (
-          <div style={{ backgroundColor: '#ffffff', padding: '24px', borderRadius: '16px', border: '1px solid #e5e7eb', maxWidth: '750px' }}>
-            <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: '#111827', marginBottom: '16px' }}>🛒 Your Shopping Cart</h3>
-            {cart.length === 0 ? (
-              <p style={{ fontSize: '14px', color: '#6b7280' }}>Your cart is empty. Add items from the Products tab!</p>
-            ) : (
-              <div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
-                  {cart.map((item, index) => (
-                    <div key={index} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', backgroundColor: '#f9fafb', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
-                      <div>
-                        <span style={{ fontWeight: '600', fontSize: '15px', color: '#111827' }}>{item.name || item.title}</span>
-                        <div style={{ fontSize: '13px', color: '#059669', fontWeight: '700', marginTop: '4px' }}>
-                          ₹{item.price} × {item.quantity || 1} = ₹{item.price * (item.quantity || 1)}
-                        </div>
-                      </div>
-                      
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #d1d5db', borderRadius: '6px', backgroundColor: '#ffffff' }}>
-                          <button onClick={() => updateQuantity(index, -1)} style={{ padding: '4px 10px', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' }}>-</button>
-                          <span style={{ padding: '0 8px', fontSize: '14px', fontWeight: '600' }}>{item.quantity || 1}</span>
-                          <button onClick={() => updateQuantity(index, 1)} style={{ padding: '4px 10px', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' }}>+</button>
-                        </div>
-                        <button onClick={() => removeFromCart(index)} style={{ backgroundColor: '#fee2e2', color: '#991b1b', border: 'none', padding: '6px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: '600', cursor: 'pointer' }}>
-                          Remove
-                        </button>
-                      </div>
+          {/* 3D QUICK-ACTION TILES */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: '18px' }}>
+            {quickTiles.map((tile) => (
+              <div
+                key={tile.path}
+                onClick={() => (window.location.href = tile.path)}
+                style={{ cursor: 'pointer' }}
+              >
+                <DashboardCard3D style={{ padding: '20px', height: '100%' }} maxTilt={10}>
+                  <div style={{ transform: 'translateZ(18px)' }}>
+                    <div
+                      style={{
+                        width: '42px',
+                        height: '42px',
+                        borderRadius: '11px',
+                        background: 'rgba(15, 23, 42, 0.85)',
+                        border: `1px solid ${tile.accent}`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '20px',
+                        marginBottom: '12px',
+                        boxShadow: '0 8px 16px rgba(0,0,0,0.45)'
+                      }}
+                    >
+                      {tile.icon}
                     </div>
-                  ))}
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '2px solid #e5e7eb', paddingTop: '16px' }}>
-                  <span style={{ fontSize: '18px', fontWeight: 'bold', color: '#111827' }}>Total Price:</span>
-                  <span style={{ fontSize: '22px', fontWeight: '800', color: '#059669' }}>₹{totalPrice}</span>
-                </div>
+                    <h4 style={{ margin: '0 0 6px 0', fontSize: '16px', fontWeight: '700', color: '#f8fafc' }}>
+                      {tile.title}
+                    </h4>
+                    <p style={{ margin: 0, fontSize: '13px', color: '#94a3b8', lineHeight: 1.4 }}>
+                      {tile.desc}
+                    </p>
+                  </div>
+                </DashboardCard3D>
               </div>
-            )}
+            ))}
           </div>
-        )}
+        </div>
       </main>
     </div>
   );
